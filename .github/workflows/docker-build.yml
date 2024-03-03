@@ -1,0 +1,44 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches:
+      - main  # ajuste conforme a sua branch principal
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Get version from file
+      id: version
+      run: echo "version=$(cat VERSION)" >> $GITHUB_ENV
+    
+    - name: Get version for Tags from file
+      id: versionTag
+      run: echo "::set-output name=version::$(cat VERSION)"
+
+    - name: Login to Docker Hub
+      run: echo "${{ secrets.PDOCKERHUB }}" | docker login -u "${{ secrets.UDOCKERHUB }}" --password-stdin
+    
+    - name: Build and push Docker image
+      run: |
+        docker build -t brnfigueira/wls-application-fe:latest .
+        docker push brnfigueira/wls-application-fe:latest
+        docker build -t brnfigueira/wls-application-fe:$version .
+        docker push brnfigueira/wls-application-fe:$version
+    
+    - name: Create Git tag
+      uses: actions/create-release@latest
+      with:
+        tag_name: ${{ steps.versionTag.outputs.version }}
+        release_name: Release ${{ steps.versionTag.outputs.version }}
+        body: |
+          Release ${{ steps.versionTag.outputs.version }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_ACCESS }}
